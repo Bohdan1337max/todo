@@ -1,6 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp( MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -19,7 +22,6 @@ class MyApp extends StatefulWidget {
 
 
 class _MyAppState extends State<MyApp> {
-  List todos = [];
   String input = "";
 
   createTodos() {
@@ -35,8 +37,15 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  deleteTodos() {
+  deleteTodos(item) {
+    DocumentReference documentReference =
+    FirebaseFirestore.instance.collection("MyTodos").doc(item);
+    
 
+    documentReference.delete()
+.whenComplete(() {
+  print("$item deleted");
+    });
   }
 
 
@@ -49,6 +58,7 @@ class _MyAppState extends State<MyApp> {
       appBar: AppBar(
         title: Text("my todos"),
       ),
+
       floatingActionButton: FloatingActionButton(onPressed:
           () {
         showDialog(context: context,
@@ -73,31 +83,38 @@ class _MyAppState extends State<MyApp> {
       } ,
         child: Icon(Icons.add, color: Colors.white,),
       ),
-      body: ListView.builder(
-          itemCount: todos.length,
-          itemBuilder: (BuildContext context,int index) {
-            return Dismissible(
-                key: Key(todos[index]),
-                child: Card(
-                  elevation: 4 ,
-                  margin: EdgeInsets.all(4),
-                  shape: RoundedRectangleBorder(borderRadius:
-                  BorderRadius.circular(8)),
-                    child: ListTile(
-                      title: Text(todos[index]),
-                      trailing: IconButton(icon: Icon(Icons.delete),
-                        color: Colors.red,
-                        onPressed: () {
-                        setState(() {
-                          todos.removeAt(index);
-                        });
-                        },
-                      ),
-                    )
-                )
-            );
-          }
-      ),
+      body: StreamBuilder(
+          stream: FirebaseFirestore.instance.collection("MyTodos").snapshots(),
+      builder: (context,snapshots){
+        return
+          ListView.builder(
+          shrinkWrap: true,
+            itemCount: snapshots.data!.docs.length,
+            itemBuilder: (context,index) {
+              DocumentSnapshot documentSnapshot = snapshots.data!.docs[index];
+              return Dismissible(
+                  key: Key(index.toString()),
+                  child: Card(
+                      elevation: 4 ,
+                      margin: EdgeInsets.all(4),
+                      shape: RoundedRectangleBorder(borderRadius:
+                      BorderRadius.circular(8)),
+                      child: ListTile(
+                        title: Text(documentSnapshot["todoTitle"]),
+                        trailing: IconButton(icon: Icon(Icons.delete),
+                          color: Colors.red,
+                          onPressed: () {
+                            deleteTodos(documentSnapshot["todoTitle"]);
+                          },
+                        ),
+                      )
+                  )
+              );
+            }
+        );
+      }
+
+      )
     );
   }
 }
